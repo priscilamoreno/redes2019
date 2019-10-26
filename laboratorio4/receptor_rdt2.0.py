@@ -16,7 +16,7 @@ def deliver_data(message):
 
 def rdt_rcv(socket):
     data, emisor=socket.recvfrom(2048)
-    emisor, pckt=loads(data) #descomprimo con load
+    emisor, pckt=loads(data)
     '''print(paquete)'''
     return emisor, pckt
 
@@ -55,18 +55,13 @@ if __name__ == "__main__":
     # Iteramos indefinidamente
     while True:
         secuencia=0
-        #pckt = make_pkt(paquete)
-        #servidor, pckt=rdt_rcv(servidor, pckt)
-        #Recibimos un paquete de la red
         recv_paquete = rdt_rcv(servidor)
         if recv_paquete and corrupto:
             sndpkt=make_pkt("NAK")
             paquete=rdt_rcv(servidor, sndpkt)
         elif recv_paquete and not corrupto:
             data=extract(paquete)
-            #Extraemos los datos
             deliver_data(data)
-            #Entregamos los datos a la cap de aplicacion
             paquete=make_pkt("ACK",checksum)
             udt_send(paquete)
     close_socket()
