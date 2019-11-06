@@ -1,74 +1,70 @@
-from constantes import *
 from paquete import *
+from constantes import *
 from network import *
+from socket import *
 
 def create_socket():
-    UDPsocket=socket(AF_INET, SOCK_DGRAM)
-    UDPsocket.bind((RECEPTOR_IP, RECEPTOR_PORT)) 
-    return UDPsocket
+	servidor = socket(AF_INET, SOCK_DGRAM)
+	servidor.bind((RECEPTOR_IP,RECEPTOR_PORT))
+	return servidor
 
-def extract(packet): 
-    data=packet.get_data()
+def extract(paquete): 
+    data= paquete.get_datos() 
     return data
 
-def deliver_data(message):
-    print(message)
+def deliver_data(message): 
+	print(message)
 
-def rdt_recv(socket):
-    datos=socket.recvfrom(2048) 
-    emisor, paquete=loads(datos) 
-    '''print(paquete)'''
-    return emisor, paquete
-
-def make_pkt(datos):
-    paquete=Paquete(receptor, emisor, datos, 0)
-    ckecksum=calcular_checksum(paquete)
-    paquete.set_checksum(ckecksum)
-    return paquete
+def rdt_rcv(socket): 
+	data = socket.recv(2048) 
+	emisor,paquete = loads(data) 
+	return (emisor,paquete)
+	
 
 def corrupto(paquete):
-    if paquete.set_checksum()== 0:
-        return True
-    else:
-        return False
+	if calcular_checksum(paquete) == 0:
+		return True
+	else:
+		return False
 
-def udp_send(paquete, emisor): 
-    datos=dumps(emisor, confirmacion) 
-    socket.sento(datos, (NETWORK_IP, NETWORK_PORT))
-    return datos
+
+def make_pkt(data): 
+	paquete = Paquete(RECEPTOR_PORT , EMISOR_PORT, data,0)
+	resultado = calcular_checksum(paquete)  
+	paquete.set_checksum(resultado)
+	return paquete
+
+
+def udt_send(socket,emisor,paquete): 
+	datos = dumps((emisor,paquete)) 
+	socket.sendto(datos,(NETWORK_IP,NETWORK_PORT))
+	return (datos)
+
 
 def close_socket(socket, signal, frame):
-    print ("\rCerrando socket")
-    socket.close()
-    exit(0)
-
+	print ("\n\rCerrando socket")
+	socket.close()
+	exit(0)
 
 if __name__ == "__main__":
-    servidor=create_socket()
-    # Creamos el socket "receiver"
+	servidor= create_socket()# Creamos el socket "receiver"
+	# Registramos la senial de salida
+	signal.signal(signal.SIGINT, partial(close_socket, servidor))
+	print ("listo para recibir mensajes..")# Imprimimos el cartel "Listo para recibir mensajes..."
 
-    # Registramos la senial de salida
-    signal.signal(signal.SIGINT, partial(close_socket, servidor))
-    # Imprimimos el cartel "Listo para recibir mensajes..."
-    print("Listo para recibir mensajes...")
-
-    # Iteramos indefinidamente
-    while True:
-                secuencia=0
-                #num de id del paquete
-                recv_paquete=rdt_recv(servidor)#servidor
-                #Recibimos un paquete de la red
-                addr, msg=rdt_recv(servidor)
-
-                print("rec msg %s: %s" % (addr, msg))
-                if recv_paquete and corrupto:
-                    sndpkt=make_pkt("NAK")
-                    paquete=rdt_recv(servidor)
-                elif recv_paquete and not corrupto:
-                    data=extract(paquete)
-                    #Extraemos los datos
-                    deliver_data(data)
-                    #Entregamos los datos a la cap de aplicacion
-                    paquete=make_pkt("ACK",checksum)
-                    udt_send(paquete)
-    close_socket()
+	secuencia=0
+	while True:
+		emisor, paquete=rdt_rcv(servidor)
+		print (emisor,paquete)
+		if corrupto(paquete) ==0: 
+			emisor = (EMISOR_IP,EMISOR_PORT)
+			pkt = make_pkt("NAK") 
+			udt_send(servidor,emisor,pkt) 
+		else: 
+			emisor = (EMISOR_IP,EMISOR_PORT) 
+			pkt2 = make_pkt("ACK")
+			data= extract(paquete)# Extrae los datos
+			deliver_data(data)# Entregamos los datos a la capa de aplicacion
+			udt_send(servidor,emisor,pkt2) #los envia a la red y al emisor
+			secuencia = (secuencia + 1) // 2 
+	close_socket(servidor)
